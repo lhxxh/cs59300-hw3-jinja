@@ -1,0 +1,22 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+____________________ test_assigned_in_every_branch[if-else] ____________________
+tests/test_meta_conditionals.py:18: in test_assigned_in_every_branch
+    assert meta.find_undeclared_variables(env.parse(source)) == {"control"}
+E   AssertionError: assert {'control', 'output'} == {'control'}
+E
+E     Extra items in the left set:
+E     'output'
+E     Use -v to get more diff
+_________________ test_assigned_in_every_branch[if-elif-else] __________________
+tests/test_meta_conditionals.py:18: in test_assigned_in_every_branch
+    assert meta.find_undeclared_variables(env.parse(source)) == {"control"}
+E   AssertionError: assert {'control', 'output'} == {'control'}
+E
+E     Extra items in the left set:
+E     'output'
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/test_meta_conditionals.py::test_assigned_in_every_branch[if-else]
+FAILED tests/test_meta_conditionals.py::test_assigned_in_every_branch[if-elif-else]
+2 failed in 0.04s
