@@ -2,12 +2,15 @@
 
 The original Jinja 3.1.6 release commit,
 `15206881c006c79667fe5154fe80c01c65410679`, is an ancestor of this branch.
-The patch tracks which names all paths through a conditional assign.
+The patch tracks which names every conditional path assigns before use. This
+analysis runs in the meta API. Rendering keeps the original compiler’s lookup
+behavior.
 
 ### Where to Find the Fix and Tests
 
-- **Implementation:** `src/jinja2/idtracking.py`, in
-  `Symbols.branch_update` and `FrameSymbolVisitor.visit_If`.
+- **Implementation:** `_TrackingSymbols` and `_TrackingSymbolVisitor` in
+  `src/jinja2/meta.py` analyze branch assignments and reads. `src/jinja2/compiler.py`
+  and `src/jinja2/idtracking.py` let the meta generator select that analysis.
 - **Original reproductions:** `test_assigned_in_every_branch` in
   `tests/test_meta_conditionals.py` covers both if/else and if/elif/else.
 - **Additional tests:** `test_conditional_paths`,
@@ -15,6 +18,9 @@ The patch tracks which names all paths through a conditional assign.
   `test_partial_assignment_keeps_context_value` in
   `tests/test_meta_conditionals.py` cover nested and partial assignments,
   context reads, scope, and rendering.
+- **Inner-scope regressions:** `test_reads_in_inner_scope_before_assignment` in
+  the same file checks meta results and rendered output for a `set` block, a
+  loop, and a `with` block that read a value before the enclosing assignment.
 
 ### Setup
 
@@ -51,9 +57,7 @@ PYTHONPATH=src python -m pytest -q tests/test_meta_conditionals.py tests/test_ap
 PYTHONPATH=src python -m pytest -q
 ```
 
-The full suite passed all 924 tests on Python 3.9. See
-`homework3/evidence/regression-test.txt` for the output.
-
-A later audit found a rendering regression outside that suite. If a conditional
-assigns a name in both branches and one branch reads that name inside the body of
-a `set` block before assigning it, the patch can drop its context lookup.
+On Python 3.9, the focused suite passed 57 tests and the full suite passed 932.
+See `homework3/evidence/focused-test.txt` and `homework3/evidence/regression-test.txt`
+for the test output. The earlier patch failed all six new inner-scope cases.
+See `homework3/evidence/initial-patch-scope-failures.txt` for those failures.

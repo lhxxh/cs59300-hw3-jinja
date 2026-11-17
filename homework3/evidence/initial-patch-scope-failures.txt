@@ -1,0 +1,55 @@
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+________ test_reads_in_inner_scope_before_assignment[render-set-block] _________
+tests/test_meta_conditionals.py:127: in test_reads_in_inner_scope_before_assignment
+    assert env.from_string(source).render(flag=True, x="input") == "input!"
+E   AssertionError: assert '!' == 'input!'
+E
+E     - input!
+E     + !
+___________ test_reads_in_inner_scope_before_assignment[render-loop] ___________
+tests/test_meta_conditionals.py:127: in test_reads_in_inner_scope_before_assignment
+    assert env.from_string(source).render(flag=True, x="input") == "input!"
+E   AssertionError: assert '!' == 'input!'
+E
+E     - input!
+E     + !
+___________ test_reads_in_inner_scope_before_assignment[render-with] ___________
+tests/test_meta_conditionals.py:127: in test_reads_in_inner_scope_before_assignment
+    assert env.from_string(source).render(flag=True, x="input") == "input!"
+E   AssertionError: assert '!' == 'input!'
+E
+E     - input!
+E     + !
+_________ test_reads_in_inner_scope_before_assignment[meta-set-block] __________
+tests/test_meta_conditionals.py:129: in test_reads_in_inner_scope_before_assignment
+    assert meta.find_undeclared_variables(env.parse(source)) == {"flag", "x"}
+E   AssertionError: assert {'flag'} == {'flag', 'x'}
+E
+E     Extra items in the right set:
+E     'x'
+E     Use -v to get more diff
+____________ test_reads_in_inner_scope_before_assignment[meta-loop] ____________
+tests/test_meta_conditionals.py:129: in test_reads_in_inner_scope_before_assignment
+    assert meta.find_undeclared_variables(env.parse(source)) == {"flag", "x"}
+E   AssertionError: assert {'flag'} == {'flag', 'x'}
+E
+E     Extra items in the right set:
+E     'x'
+E     Use -v to get more diff
+____________ test_reads_in_inner_scope_before_assignment[meta-with] ____________
+tests/test_meta_conditionals.py:129: in test_reads_in_inner_scope_before_assignment
+    assert meta.find_undeclared_variables(env.parse(source)) == {"flag", "x"}
+E   AssertionError: assert {'flag'} == {'flag', 'x'}
+E
+E     Extra items in the right set:
+E     'x'
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/test_meta_conditionals.py::test_reads_in_inner_scope_before_assignment[render-set-block]
+FAILED tests/test_meta_conditionals.py::test_reads_in_inner_scope_before_assignment[render-loop]
+FAILED tests/test_meta_conditionals.py::test_reads_in_inner_scope_before_assignment[render-with]
+FAILED tests/test_meta_conditionals.py::test_reads_in_inner_scope_before_assignment[meta-set-block]
+FAILED tests/test_meta_conditionals.py::test_reads_in_inner_scope_before_assignment[meta-loop]
+FAILED tests/test_meta_conditionals.py::test_reads_in_inner_scope_before_assignment[meta-with]
+6 failed in 0.05s

@@ -45,11 +45,13 @@ class Symbols:
         self.refs: t.Dict[str, str] = {}
         self.loads: t.Dict[str, t.Any] = {}
         self.stores: t.Set[str] = set()
-        self.definite_stores: t.Set[str] = set()
 
     def analyze_node(self, node: nodes.Node, **kwargs: t.Any) -> None:
         visitor = RootVisitor(self)
         visitor.visit(node, **kwargs)
+
+    def make_visitor(self) -> "FrameSymbolVisitor":
+        return FrameSymbolVisitor(self)
 
     def _define_ref(
         self, name: str, load: t.Optional[t.Tuple[str, t.Optional[str]]] = None
@@ -93,12 +95,10 @@ class Symbols:
         rv.refs = self.refs.copy()
         rv.loads = self.loads.copy()
         rv.stores = self.stores.copy()
-        rv.definite_stores = self.definite_stores.copy()
         return rv
 
     def store(self, name: str) -> None:
         self.stores.add(name)
-        self.definite_stores.add(name)
 
         # If we have not see the name referenced yet, we need to figure
         # out what to set it to.
@@ -117,7 +117,6 @@ class Symbols:
 
     def declare_parameter(self, name: str) -> str:
         self.stores.add(name)
-        self.definite_stores.add(name)
         return self._define_ref(name, load=(VAR_LOAD_PARAMETER, None))
 
     def load(self, name: str) -> None:
@@ -126,36 +125,20 @@ class Symbols:
 
     def branch_update(self, branch_symbols: t.Sequence["Symbols"]) -> None:
         stores: t.Set[str] = set()
-        resolved: t.Dict[str, t.Any] = {}
 
         for branch in branch_symbols:
             stores.update(branch.stores)
-            for target, load in branch.loads.items():
-                if load[0] == VAR_LOAD_RESOLVE:
-                    resolved[target] = load
 
         stores.difference_update(self.stores)
-        definite_stores = set.intersection(
-            *(branch.definite_stores for branch in branch_symbols)
-        )
 
         for sym in branch_symbols:
             self.refs.update(sym.refs)
             self.loads.update(sym.loads)
             self.stores.update(sym.stores)
 
-        # A load in any reachable branch must not be overwritten by a store
-        # in a different branch. All branches must store a name before it is
-        # safe to leave its initial value undefined.
-        self.loads.update(resolved)
-        self.definite_stores = definite_stores
-
         for name in stores:
             target = self.find_ref(name)
             assert target is not None, "should not happen"
-
-            if name in definite_stores:
-                continue
 
             if self.parent is not None:
                 outer_target = self.parent.find_ref(name)
@@ -193,7 +176,7 @@ class Symbols:
 
 class RootVisitor(NodeVisitor):
     def __init__(self, symbols: "Symbols") -> None:
-        self.sym_visitor = FrameSymbolVisitor(symbols)
+        self.sym_visitor = symbols.make_visitor()
 
     def _simple_visit(self, node: nodes.Node, **kwargs: t.Any) -> None:
         for child in node.iter_child_nodes():
@@ -270,12 +253,11 @@ class FrameSymbolVisitor(NodeVisitor):
         self.symbols.load(node.name)
 
     def visit_If(self, node: nodes.If, **kwargs: t.Any) -> None:
+        self.visit(node.test, **kwargs)
         original_symbols = self.symbols
 
-        def inner_visit(
-            nodes: t.Iterable[nodes.Node], start: "Symbols"
-        ) -> "Symbols":
-            self.symbols = rv = start.copy()
+        def inner_visit(nodes: t.Iterable[nodes.Node]) -> "Symbols":
+            self.symbols = rv = original_symbols.copy()
 
             for subnode in nodes:
                 self.visit(subnode, **kwargs)
@@ -283,18 +265,10 @@ class FrameSymbolVisitor(NodeVisitor):
             self.symbols = original_symbols
             return rv
 
-        # Each later test is evaluated only after all earlier tests failed.
-        # Keep those reads on the paths that reach the test or the else body.
-        condition_symbols = original_symbols.copy()
-        branches = []
-        for branch in [node, *node.elif_]:
-            self.symbols = condition_symbols
-            self.visit(branch.test, **kwargs)
-            branches.append(inner_visit(branch.body, condition_symbols))
-
-        branches.append(inner_visit(node.else_, condition_symbols))
-        self.symbols = original_symbols
-        self.symbols.branch_update(branches)
+        body_symbols = inner_visit(node.body)
+        elif_symbols = inner_visit(node.elif_)
+        else_symbols = inner_visit(node.else_ or ())
+        self.symbols.branch_update([body_symbols, elif_symbols, else_symbols])
 
     def visit_Macro(self, node: nodes.Macro, **kwargs: t.Any) -> None:
         self.symbols.store(node.name)

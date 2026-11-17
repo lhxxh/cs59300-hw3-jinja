@@ -73,6 +73,16 @@ def test_assigned_in_every_branch(env, source):
             "{% set x = 2 %}{% endif %}{{ x }}{% endmacro %}{{ f(arg) }}",
             {"arg"},
         ),
+        (
+            "{% if flag %}{% set x = 1 %}{% with %}{{ x }}{% endwith %}"
+            "{% else %}{% set x = 2 %}{% endif %}{{ x }}",
+            {"flag"},
+        ),
+        (
+            "{% if flag %}{% set x %}{% with x = 'local' %}{{ x }}{% endwith %}"
+            "{% endset %}{% else %}{% set x = 'other' %}{% endif %}{{ x }}",
+            {"flag"},
+        ),
     ],
     ids=[
         "missing-else",
@@ -86,6 +96,8 @@ def test_assigned_in_every_branch(env, source):
         "unrelated-name",
         "loop-scope",
         "macro-scope",
+        "inner-scope-read-after-assignment",
+        "inner-scope-shadowing",
     ],
 )
 def test_conditional_paths(env, source, expected):
@@ -108,3 +120,22 @@ def test_partial_assignment_keeps_context_value(env):
     template = env.from_string("{% if a %}{% set x = 1 %}{% endif %}{{ x }}")
     assert template.render(a=False, x="context") == "context"
     assert template.render(a=True, x="context") == "1"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "{% set x %}{{ x }}!{% endset %}{{ x }}",
+        "{% for _ in [1] %}{{ x }}!{% endfor %}{% set x = 'new' %}",
+        "{% with %}{{ x }}!{% endwith %}{% set x = 'new' %}",
+    ],
+    ids=["set-block", "loop", "with"],
+)
+@pytest.mark.parametrize("check", ["render", "meta"])
+def test_reads_in_inner_scope_before_assignment(env, body, check):
+    source = "{% if flag %}" + body + "{% else %}{% set x = 'other' %}{% endif %}"
+
+    if check == "render":
+        assert env.from_string(source).render(flag=True, x="input") == "input!"
+    else:
+        assert meta.find_undeclared_variables(env.parse(source)) == {"flag", "x"}
